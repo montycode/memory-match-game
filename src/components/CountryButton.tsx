@@ -1,16 +1,19 @@
 import React from "react";
 
-interface CountryButtonProps {
-  value: string; // Country or Capital name
-  onClick: (index: number) => void; // Callback function
-  selected: boolean; // Whether the button is selected
-  matched: boolean; // Whether the button is matched
-  isError: boolean; // Whether the button is in error state
+interface ButtonProps {
+  key: number;
+  value: string;
+  onClick: () => void;
+  canSelect: boolean;
+  selected: boolean;
+  matched: boolean;
+  isError: boolean;
 }
 
-const CountryButton: React.FC<CountryButtonProps> = ({
+const CountryButton: React.FC<ButtonProps> = ({
   value,
   onClick,
+  canSelect,
   selected,
   matched,
   isError,
@@ -25,9 +28,9 @@ const CountryButton: React.FC<CountryButtonProps> = ({
 
   return (
     <button
-      onClick={(event) => onClick(Number(event.currentTarget.value))}
-      disabled={selected || matched}
       className={`mx-2 my-2  transition duration-150 ease-in-out rounded border px-16 py-4 text-xl font-bold ${buttonColors}`}
+      onClick={canSelect ? onClick : undefined}
+      disabled={matched}
     >
       {value}
     </button>

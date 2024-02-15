@@ -36,7 +36,7 @@ npm install
 4. Start the app:
 
 ```bash
-npm dev
+npm run dev
 ```
 
 5. Open your web browser and visit http://localhost:5173/.

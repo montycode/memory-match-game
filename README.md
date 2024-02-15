@@ -48,6 +48,8 @@ npm run dev
 - Hooks
 
 ### How to play?
+![Grabación-2024-02-15-145529](https://github.com/montycode/memory-match-game/assets/43155049/8c233424-6b83-4cb6-ad65-649250261e3a)
+
 
 - You will see a grid of buttons, each representing a country or its capital.
 

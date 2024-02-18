@@ -1,6 +1,7 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { useState, useEffect } from "react";
 import useLifeCounter from "./useLifeCounter";
+import { CountryCapital } from "../types/country-capital";
+import { StatusEnum, ButtonProps } from "../types/country-button.d";
 
 interface UseMatchGameProps {
   data: { [key: string]: string };
@@ -8,25 +9,27 @@ interface UseMatchGameProps {
   onGameLoss: () => void;
 }
 
-interface ButtonProps {
-  key: number;
-  value: string;
-  onClick: () => void;
-  canSelect: boolean;
-  selected: boolean;
-  matched: boolean;
-  isError: boolean;
-}
-
 const useMatchGame = ({ data, onGameWin, onGameLoss }: UseMatchGameProps) => {
-  // Convert data object to an array of key-value pairs
-  const countryPairs = Object.entries(data);
   const [selectedButtons, setSelectedButtons] = useState<number[]>([]);
-  const [matchedPairs, setMatchedPairs] = useState<number>(0);
+  const [matchedPairs, setMatchedPairs] = useState<number[]>([]);
+  const [errorPairs, setErrorPairs] = useState<number[]>([]);
+  const [matchCount, setMatchCount] = useState<number>(0);
   const [errorCount, setErrorCount] = useState<number>(0);
-  const [currentSelectedIndex, setCurrentSelectedIndex] = useState<
-    number | null
-  >(null);
+
+  const countries = Object.keys(data);
+  const capitals = Object.values(data);
+
+  // Merge country and capital names and shuffle them
+  const dataElements = countries.concat(capitals);
+
+  // Check if the selected pair is a match
+  const validateMatch = (
+    data: CountryCapital,
+    firstValue: string,
+    secondValue: string
+  ) => {
+    return data[firstValue] == secondValue || data[secondValue] == firstValue;
+  };
 
   // Use a custom hook for managing lives
   const { lives, decreaseLife, resetLives } = useLifeCounter({
@@ -36,7 +39,8 @@ const useMatchGame = ({ data, onGameWin, onGameLoss }: UseMatchGameProps) => {
 
   // Handle button click logic
   const handleButtonClick = (index: number) => {
-    // Avoid handling additional clicks while processing logic
+    setErrorPairs([]);
+
     if (selectedButtons.includes(index) || selectedButtons.length >= 2) {
       return;
     }
@@ -45,50 +49,76 @@ const useMatchGame = ({ data, onGameWin, onGameLoss }: UseMatchGameProps) => {
     setSelectedButtons((prevSelected) => [...prevSelected, index]);
 
     if (selectedButtons.length === 1) {
-      const [firstIndex] = selectedButtons;
-      const [firstCountry, firstCapital] = countryPairs[firstIndex];
-      const [secondCountry, secondCapital] = countryPairs[index];
+      const firstSelectedIndex = selectedButtons[0];
+      const firstValue = dataElements[firstSelectedIndex];
+      const secondValue = dataElements[index];
 
-      // Check if the selected country-capital pairs match
-      const isMatch =
-        (firstCountry === secondCountry && firstCapital === secondCapital) ||
-        (firstCountry === secondCapital && firstCapital === secondCountry);
+      const isMatch = validateMatch(data, firstValue, secondValue);
 
       if (isMatch) {
+        // Add matched pair to matchedPairs
+        setMatchedPairs((prevMatchedPairs) => [
+          ...prevMatchedPairs,
+          index,
+          firstSelectedIndex,
+        ]);
+
         // Increase matched pairs count
-        setMatchedPairs((prevMatchedPairs) => prevMatchedPairs + 2);
+        setMatchCount((prevMatchCount) => prevMatchCount + 2);
 
         // If all pairs are matched, call onGameWin callback
-        if (matchedPairs + 2 === countryPairs.length) {
+        if (matchCount === dataElements.length - 2) {
           onGameWin();
         }
       } else {
         // Decrease life and track error count if there is no match
+        // Add error pair to errorPairs
+        setErrorPairs((prevSelected) => [
+          ...prevSelected,
+          index,
+          firstSelectedIndex,
+        ]);
+
         decreaseLife();
+
         setErrorCount((prevErrorCount) => prevErrorCount + 1);
 
-        // If three errors are made, reset the game
         if (errorCount + 1 === 3) {
-          resetGame();
+          onGameLoss();
         }
       }
 
       // Clear selection after processing comparison
       setSelectedButtons([]);
-      setCurrentSelectedIndex(null);
     } else {
       // Set the current selected index for the second button click
-      setCurrentSelectedIndex(index);
     }
   };
 
   // Reset the game state
   const resetGame = () => {
     resetLives();
-    setMatchedPairs(0);
+    setMatchedPairs([]);
+    setMatchCount(0);
     setErrorCount(0);
     setSelectedButtons([]);
-    setCurrentSelectedIndex(null);
+    setErrorPairs([]);
+  };
+
+  const getButtonStatus = (index: number) => {
+    const isSelected = selectedButtons.includes(index);
+    const isMatched = matchedPairs.includes(index);
+    const hasError = errorPairs.includes(index);
+
+    if (isSelected) {
+      return StatusEnum.SELECTED;
+    } else if (isMatched) {
+      return StatusEnum.MATCHED;
+    } else if (hasError) {
+      return StatusEnum.ERROR;
+    } else {
+      return StatusEnum.DEFAULT;
+    }
   };
 
   // Generate button properties based on index and value
@@ -97,29 +127,24 @@ const useMatchGame = ({ data, onGameWin, onGameLoss }: UseMatchGameProps) => {
     value,
     onClick: () => handleButtonClick(index),
     canSelect: !selectedButtons.includes(index) && selectedButtons.length < 2,
-    selected: selectedButtons.includes(index),
-    matched: selectedButtons.includes(index),
-    isError: false,
+    status: getButtonStatus(index),
   });
 
   // Generate an array of buttons for each country-capital pair
   const generateButtons = () =>
-    countryPairs.flatMap(([country, capital], index) => [
-      generateButton(index * 2, country),
-      generateButton(index * 2 + 1, capital),
-    ]);
+    dataElements.flatMap((value, index) => generateButton(index, value));
 
   // Check if all pairs are matched and call onGameWin callback
   useEffect(() => {
-    if (matchedPairs === countryPairs.length) {
+    if (matchCount === dataElements.length / 2) {
       onGameWin();
     }
-  }, [matchedPairs, countryPairs.length, onGameWin]);
+  }, [matchCount, onGameWin, dataElements.length]);
 
   // Generate buttons and return the result along with lives count
   const buttons = generateButtons();
 
-  return { buttons, lives };
+  return { buttons, lives, resetGame };
 };
 
 export default useMatchGame;
